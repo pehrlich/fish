@@ -3,9 +3,8 @@ app.factory 'FishService', [->
 
   # https://github.com/voodootikigod/node-serialport
   SerialPort = require("serialport").SerialPort
-  serialPort = new SerialPort("/dev/tty-usbserial1", {
-    # 9600. Must be one of: 115200, 57600, 38400, 19200, 9600, 4800, 2400, 1800, 1200, 600, 300, 200, 150, 134, 110, 75, or 50.
-    # baudrate: 57600
+  serialPort = new SerialPort("/dev/tty.usbmodem12341", {
+    baudrate: 57600
   });
 
   serialPort.on 'open', ->
@@ -14,21 +13,23 @@ app.factory 'FishService', [->
   queueCommandToSerialCommand = {
     noseUp: 'w',
     noseDown: 's',
-    flapLeft: 'a',
-    flapRight: 'd'
-    stop: '' # todo: what's the stopflap command?
+    flapLeft: 'd',
+    flapRight: 'a'
+    stop: 'q'
   }
 
   go = ->
-    if command = fishService.queue.length.pop()
+    if command = fishService.queue.shift()
 
       unless serialCommand = queueCommandToSerialCommand[command]
         console.warn "Unknown Command: ", command
         return
 
       console.log 'sending to serial port', command
-      serialPort.write serialCommand, (err, results) ->
-        # console.log 'done writing', err, results
+      serialPort.write "#{serialCommand}\r\t", (err, results) ->
+#        console.log 'done writing', err, results
+    else
+#      console.log 'empty queue, sending nothing'
 
     # we have a command timing of 20ms, so here we send a command every 40 just for safety. Nah j/k, we're waiting
     # for after the execution anyway
@@ -41,18 +42,19 @@ app.factory 'FishService', [->
   fishService = {
     going: false,
     queue: []
+    history: []
     start: ->
       fishService.going = true
       go()
 
     stop: ->
       fishService.queue = []
-      fishService.enqueue('stopFlap')
-      fishService.enqueue('noseSteady')
+      fishService.enqueue('stop')
       fishService.going = false
 
     enqueue: (command)->
-      queue.push command
+      fishService.queue.push command
+      fishService.history.unshift command
       console.log command, 'enqueued'
   }
   return fishService

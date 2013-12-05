@@ -4,55 +4,75 @@
 
   app.controller("FishController", [
     "$scope", "LeapService", "FishService", function($scope, LeapService, FishService) {
-      var lastFlapDirection, lastFlapTime;
+      var lastCommandTime, lastFlapDirection, lastFlapTime;
       $scope.base_pose = {};
       $scope.paused = true;
       $scope.tilt = 0;
-      $scope.activeHandId = undefiend;
+      $scope.activeHandId = void 0;
       LeapService.on('noseUp', function() {
-        return FishService.enqueue('noseUp');
+        FishService.enqueue('stop');
+        return $scope.noseState = 'noseUp';
       });
       LeapService.on('noseDown', function() {
-        return FishService.enqueue('noseDown');
+        FishService.enqueue('stop');
+        return $scope.noseState = 'noseDown';
       });
       LeapService.on('noseSteady', function() {
-        return FishService.enqueue('noseSteady');
+        FishService.enqueue('stop');
+        return $scope.noseState = 'noseSteady';
       });
       $scope.intializeFromCurrentPose = function() {
         console.log('would initalize now');
         return $scope.base_pose = {};
       };
-      LeapController.on('engage', function(hand) {
+      LeapService.on('engage', function(hand) {
         $scope.intializeFromCurrentPose(hand);
-        FishService.clearQueue();
+        FishService.queue = [];
         return FishService.start();
       });
-      LeapController.on('disengage', function() {
+      LeapService.on('disengage', function() {
         return FishService.stop();
       });
-      lastFlapTime = undefiend;
-      lastFlapDirection = undefiend;
+      lastFlapTime = new Date();
+      lastFlapDirection = 'Right';
       $scope.autoFlap = function(frame) {
         var elapsedTime;
         elapsedTime = new Date() - lastFlapTime;
-        if (lastFlapDirection === 'right' && elapsedTime > frame.rightFlapTime) {
-          FishService.enqueue('flapLeft');
-          lastFlapDirection === 'left';
-          lastFlapTime = new Date();
-        }
-        if (lastFlapDirection === 'left' && elapsedTime > frame.leftFlapTime) {
-          FishService.enqueue('flapRight');
-          lastFlapDirection === 'right';
-          return lastFlapTime = new Date();
+        console.log('autoflap');
+        if (lastFlapDirection === 'Right' && elapsedTime > frame.rightFlapTime) {
+          return $scope.flap('Left');
+        } else if (lastFlapDirection === 'Left' && elapsedTime > frame.leftFlapTime) {
+          return $scope.flap('Right');
         }
       };
-      return Leap.on('frame', function(frame) {
+      $scope.flap = function(direction) {
+        console.log('flap', direction);
+        FishService.enqueue('stop');
+        FishService.enqueue("flap" + direction);
+        lastFlapDirection = direction;
+        return lastFlapTime = new Date();
+      };
+      lastCommandTime = new Date();
+      $scope.autoNose = function() {
+        var elapsedTime;
+        elapsedTime = new Date() - lastCommandTime;
+        if (elapsedTime > 200) {
+          FishService.enqueue($scope.noseState);
+          return lastCommandTime = new Date();
+        }
+      };
+      return LeapService.on('frame', function(frame) {
         if (!FishService.going) {
           return;
         }
-        if (FishService.queue.length === 0) {
-          return $scope.autoFlap(frame);
+        if ($scope.noseState === 'noseSteady') {
+          $scope.autoFlap(frame);
+        } else {
+          $scope.autoNose(frame);
         }
+        $scope.history = FishService.history;
+        $scope.frame = frame;
+        return $scope.$digest();
       });
     }
   ]);

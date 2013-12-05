@@ -5,6 +5,8 @@
       <script type="text/javascript" src="js/lib/leap.js"></script>
       <script type="text/javascript" src="js/core_ext.js"></script>
       <script type="text/javascript" src="js/app.js"></script>
+      <script type="text/javascript" src="js/fish_service.js"></script>
+      <script type="text/javascript" src="js/leap_service.js"></script>
       <link href="css/main.css" rel="stylesheet">
     <title>Hello Fish!</title>
   </head>
@@ -14,28 +16,40 @@
   <table>
     <tr>
       <td>
-        Dive
+        baseFlapTime
       </td>
       <td>
-
-      </td>
-    </tr>
-    <tr>
-      <td>
-        Balance
-      </td>
-      <td>
-
+        {{frame.baseFlapTime.toPrecision(4)}}ms
       </td>
     </tr>
     <tr>
       <td>
-        Speed
+        leftFlapTime
       </td>
       <td>
-
+        {{frame.leftFlapTime.toPrecision(4)}}ms
+      </td>
+    </tr>
+    <tr>
+      <td>
+        rightFlapTime
+      </td>
+      <td>
+        {{frame.rightFlapTime.toPrecision(4) }}ms
+      </td>
+    </tr>
+    <tr>
+      <td>
+        NoseState
+      </td>
+      <td>
+        {{noseState}} ({{frame.activeHand.adjustedPitch().toPrecision(1)}})
       </td>
     </tr>
   </table>
+  <h3>Command History</h3>
+  <ul>
+    <li data-ng-repeat="command in history track by $index">{{command}}</li>
+  </ul>
   </body>
 </html>

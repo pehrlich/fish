@@ -38,13 +38,18 @@ app.factory "LeapService", [ ->
           engagedHandId = hand.id
           controller.emit('engage', hand)
 
-    else if engagedHandId && engagedHand.pointables < 1
-      console.log 'disengaging hand', engagedHandId
-      engagedHandId = undefined
-      controller.emit('disengage', engagedHandId)
-
     if engagedHandId
       frame.activeHand = frame.hands.getById(engagedHandId)
+
+      # note sure why activeHand comes back as undefined sometimes
+      # it appears that we have an engagedHandId but an empty hand array
+      if !frame.activeHand || frame.activeHand.pointables < 1
+        console.log 'disengaging hand', engagedHandId
+        engagedHandId = undefined
+        controller.emit('disengage', frame.activeHand)
+        frame.activeHand = undefined
+
+    frame
 
 
   # allow hand to tilt
@@ -64,11 +69,19 @@ app.factory "LeapService", [ ->
     @setZeroAngle = (angle)->
       zeroAngle = angle
 
-    Hand.prototype.adjustedPitch = ->
-      @pitch() - zeroAngle
+#    Hand.prototype.adjustedPitch = ->
+#      @pitch() - zeroAngle
 
-    @onFrame = (frame) ->
-      if state != 'noseDown' && frame.activeHand.adjustedPitch() > activationAngle
+  zeroAngle = 0.4
+  activationAngle = 0.4 #radians
+  state = undefined
+
+  Leap.Hand.prototype.adjustedPitch = ->
+    @pitch() - zeroAngle
+
+  window.PitchHandler.prototype.onFrame = (frame) ->
+    if frame.activeHand
+      if state != 'noseDown' && frame.activeHand.adjustedPitch() < -activationAngle
         state = 'noseDown'
         controller.emit('noseDown')
 
@@ -76,27 +89,32 @@ app.factory "LeapService", [ ->
         state = 'noseUp'
         controller.emit('noseUp')
 
-      else if state != 'noseSteady'
+      else if state != 'noseSteady' && Math.abs(frame.activeHand.adjustedPitch()) < activationAngle
         state = 'noseSteady'
         controller.emit('noseSteady')
 
+    frame
 
-  controller.addStep window.PitchHandler.onFrame
+  controller.addStep window.PitchHandler.prototype.onFrame
+
+
+  speedFactor = 5
+  balanceFactor = 1
 
   # target time per side for autoFlap
   controller.addStep (frame)->
-    # negative z is towards the screen
-    # returns a ms numer based on hand position
-    # move 10 cm towards the screen to get infinitely fast flapping
-    # heh.
-    frame.baseFlapTime = 1000 + frame.activeHand.z() # todo: make this api available
+    if frame.activeHand
+      # negative z is towards the screen
+      # returns a ms numer based on hand position
+      # move 10 cm towards the screen to get infinitely fast flapping
+      # heh.
+      frame.baseFlapTime = 600 + (speedFactor * frame.activeHand.palmPosition[2]) # todo: make this api available
 
-    # todo: check the signage
-    frame.leftFlapTime = frame.baseFlapTime + frame.activeHand.x()
-    frame.rightFlapTime = frame.baseFlapTime - frame.activeHand.x()
+      # todo: check the signage
+      frame.leftFlapTime = frame.baseFlapTime + (balanceFactor * frame.activeHand.palmPosition[0])
+      frame.rightFlapTime = frame.baseFlapTime - (balanceFactor * frame.activeHand.palmPosition[0])
 
-
-
+    frame
 
 
 

@@ -14,17 +14,20 @@ app.controller "FishController", ["$scope", "LeapService", "FishService", ($scop
   $scope.base_pose = {}
   $scope.paused = true
   $scope.tilt = 0
-  $scope.activeHandId = undefiend;
+  $scope.activeHandId = undefined;
 
   # these events get enqueued no matter what
   LeapService.on 'noseUp', ->
-    FishService.enqueue('noseUp')
+    FishService.enqueue('stop')
+    $scope.noseState = 'noseUp'
 
   LeapService.on 'noseDown', ->
-    FishService.enqueue('noseDown')
+    FishService.enqueue('stop')
+    $scope.noseState = 'noseDown'
 
   LeapService.on 'noseSteady', ->
-    FishService.enqueue('noseSteady')
+    FishService.enqueue('stop')
+    $scope.noseState = 'noseSteady'
 
 
   $scope.intializeFromCurrentPose = ->
@@ -33,36 +36,56 @@ app.controller "FishController", ["$scope", "LeapService", "FishService", ($scop
 #      tilt
     }
 
-  LeapController.on 'engage', (hand)->
+  LeapService.on 'engage', (hand)->
     $scope.intializeFromCurrentPose(hand)
-    FishService.clearQueue()
+    FishService.queue = []
     FishService.start()
 
-  LeapController.on 'disengage', ->
+  LeapService.on 'disengage', ->
     FishService.stop()
 
 
-  lastFlapTime = undefiend
-  lastFlapDirection = undefiend
+  lastFlapTime = new Date()
+  lastFlapDirection = 'Right' # always flap left first
+
   $scope.autoFlap = (frame)->
     elapsedTime = new Date() - lastFlapTime
-    if lastFlapDirection == 'right' && elapsedTime > frame.rightFlapTime
-      FishService.enqueue('flapLeft')
-      lastFlapDirection == 'left'
-      lastFlapTime = new Date()
+    console.log 'autoflap'
+    if lastFlapDirection == 'Right' && elapsedTime > frame.rightFlapTime
+      $scope.flap('Left')
 
-    if lastFlapDirection == 'left' && elapsedTime > frame.leftFlapTime
-      FishService.enqueue('flapRight')
-      lastFlapDirection == 'right'
-      lastFlapTime = new Date()
+    else if lastFlapDirection == 'Left' && elapsedTime > frame.leftFlapTime
+      $scope.flap('Right')
 
 
+  $scope.flap = (direction)->
+    console.log 'flap', direction
+    FishService.enqueue('stop')
+    FishService.enqueue("flap#{direction}")
+    lastFlapDirection = direction
+    lastFlapTime = new Date()
 
-  Leap.on 'frame', (frame) ->
+
+  lastCommandTime = new Date()
+  $scope.autoNose = ->
+    # prevent flooding.  Without this, movement will be jerkey.
+    # this probably belongs in Fish Service.
+    elapsedTime = new Date() - lastCommandTime
+    if elapsedTime > 200
+      FishService.enqueue $scope.noseState
+      lastCommandTime = new Date()
+
+  LeapService.on 'frame', (frame) ->
     return unless FishService.going
 
     # todo: experiment with == 0 or < 2 here.
-    if FishService.queue.length == 0
+    if $scope.noseState == 'noseSteady'
       $scope.autoFlap(frame)
+    else
+      $scope.autoNose(frame)
+
+    $scope.history = FishService.history
+    $scope.frame = frame
+    $scope.$digest()
 
 ]

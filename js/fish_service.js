@@ -4,26 +4,30 @@
     function() {
       var SerialPort, fishService, go, queueCommandToSerialCommand, serialPort;
       SerialPort = require("serialport").SerialPort;
-      serialPort = new SerialPort("/dev/tty-usbserial1", {});
+      serialPort = new SerialPort("/dev/tty.usbmodem12341", {
+        baudrate: 57600
+      });
       serialPort.on('open', function() {
         return console.log('serial port opened', arguments);
       });
       queueCommandToSerialCommand = {
         noseUp: 'w',
         noseDown: 's',
-        flapLeft: 'a',
-        flapRight: 'd',
-        stop: ''
+        flapLeft: 'd',
+        flapRight: 'a',
+        stop: 'q'
       };
       go = function() {
         var command, serialCommand;
-        if (command = fishService.queue.length.pop()) {
+        if (command = fishService.queue.shift()) {
           if (!(serialCommand = queueCommandToSerialCommand[command])) {
             console.warn("Unknown Command: ", command);
             return;
           }
           console.log('sending to serial port', command);
-          serialPort.write(serialCommand, function(err, results) {});
+          serialPort.write("" + serialCommand + "\r\t", function(err, results) {});
+        } else {
+
         }
         if (fishService.going) {
           return setTimeout(go, 20);
@@ -32,18 +36,19 @@
       fishService = {
         going: false,
         queue: [],
+        history: [],
         start: function() {
           fishService.going = true;
           return go();
         },
         stop: function() {
           fishService.queue = [];
-          fishService.enqueue('stopFlap');
-          fishService.enqueue('noseSteady');
+          fishService.enqueue('stop');
           return fishService.going = false;
         },
         enqueue: function(command) {
-          queue.push(command);
+          fishService.queue.push(command);
+          fishService.history.unshift(command);
           return console.log(command, 'enqueued');
         }
       };

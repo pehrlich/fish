@@ -2,7 +2,7 @@
 (function() {
   app.factory("LeapService", [
     function() {
-      var controller, engagedHandId, previousValidHandIds;
+      var activationAngle, balanceFactor, controller, engagedHandId, previousValidHandIds, speedFactor, state, zeroAngle;
       console.log("connecting");
       controller = new Leap.Controller();
       controller.on("connect", function() {
@@ -49,44 +49,58 @@
               controller.emit('engage', hand);
             }
           }
-        } else if (engagedHandId && engagedHand.pointables < 1) {
-          console.log('disengaging hand', engagedHandId);
-          engagedHandId = void 0;
-          controller.emit('disengage', engagedHandId);
         }
         if (engagedHandId) {
-          return frame.activeHand = frame.hands.getById(engagedHandId);
+          frame.activeHand = frame.hands.getById(engagedHandId);
+          if (!frame.activeHand || frame.activeHand.pointables < 1) {
+            console.log('disengaging hand', engagedHandId);
+            engagedHandId = void 0;
+            controller.emit('disengage', frame.activeHand);
+            frame.activeHand = void 0;
+          }
         }
+        return frame;
       });
       window.PitchHandler = function() {
         var activationAngle, state, zeroAngle;
         zeroAngle = 0;
         activationAngle = 0.5;
         state = void 0;
-        this.setZeroAngle = function(angle) {
+        return this.setZeroAngle = function(angle) {
           return zeroAngle = angle;
         };
-        Hand.prototype.adjustedPitch = function() {
-          return this.pitch() - zeroAngle;
-        };
-        return this.onFrame = function(frame) {
-          if (state !== 'noseDown' && frame.activeHand.adjustedPitch() > activationAngle) {
+      };
+      zeroAngle = 0.4;
+      activationAngle = 0.4;
+      state = void 0;
+      Leap.Hand.prototype.adjustedPitch = function() {
+        return this.pitch() - zeroAngle;
+      };
+      window.PitchHandler.prototype.onFrame = function(frame) {
+        if (frame.activeHand) {
+          if (state !== 'noseDown' && frame.activeHand.adjustedPitch() < -activationAngle) {
             state = 'noseDown';
-            return controller.emit('noseDown');
+            controller.emit('noseDown');
           } else if (state !== 'noseUp' && frame.activeHand.adjustedPitch() > activationAngle) {
             state = 'noseUp';
-            return controller.emit('noseUp');
-          } else if (state !== 'noseSteady') {
+            controller.emit('noseUp');
+          } else if (state !== 'noseSteady' && Math.abs(frame.activeHand.adjustedPitch()) < activationAngle) {
             state = 'noseSteady';
-            return controller.emit('noseSteady');
+            controller.emit('noseSteady');
           }
-        };
+        }
+        return frame;
       };
-      controller.addStep(window.PitchHandler.onFrame);
+      controller.addStep(window.PitchHandler.prototype.onFrame);
+      speedFactor = 5;
+      balanceFactor = 1;
       controller.addStep(function(frame) {
-        frame.baseFlapTime = 1000 + frame.activeHand.z();
-        frame.leftFlapTime = frame.baseFlapTime + frame.activeHand.x();
-        return frame.rightFlapTime = frame.baseFlapTime - frame.activeHand.x();
+        if (frame.activeHand) {
+          frame.baseFlapTime = 600 + (speedFactor * frame.activeHand.palmPosition[2]);
+          frame.leftFlapTime = frame.baseFlapTime + (balanceFactor * frame.activeHand.palmPosition[0]);
+          frame.rightFlapTime = frame.baseFlapTime - (balanceFactor * frame.activeHand.palmPosition[0]);
+        }
+        return frame;
       });
       controller.connect();
       return controller;
