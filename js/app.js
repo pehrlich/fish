@@ -4,7 +4,7 @@
 
   app.controller("FishController", [
     "$scope", "LeapService", "FishService", function($scope, LeapService, FishService) {
-      var lastCommandTime, lastFlapDirection, lastFlapTime;
+      var lastCommandTime, lastDirectionChangeTime;
       $scope.base_pose = {};
       $scope.paused = true;
       $scope.tilt = 0;
@@ -33,30 +33,35 @@
       LeapService.on('disengage', function() {
         return FishService.stop();
       });
-      lastFlapTime = new Date();
-      lastFlapDirection = 'Right';
+      lastCommandTime = new Date();
+      lastDirectionChangeTime = new Date();
+      $scope.flapDirection = 'Right';
       $scope.autoFlap = function(frame) {
         var elapsedTime;
-        elapsedTime = new Date() - lastFlapTime;
-        console.log('autoflap');
-        if (lastFlapDirection === 'Right' && elapsedTime > frame.rightFlapTime) {
-          return $scope.flap('Left');
-        } else if (lastFlapDirection === 'Left' && elapsedTime > frame.leftFlapTime) {
-          return $scope.flap('Right');
+        elapsedTime = new Date() - lastDirectionChangeTime;
+        if ($scope.flapDirection === 'Right' && elapsedTime > frame.rightFlapTime) {
+          $scope.flapDirection = 'Left';
+          FishService.enqueue('stop');
+          lastDirectionChangeTime = new Date();
+        } else if ($scope.flapDirection === 'Left' && elapsedTime > frame.leftFlapTime) {
+          $scope.flapDirection = 'Right';
+          FishService.enqueue('stop');
+          lastDirectionChangeTime = new Date();
+        }
+        return $scope.flap();
+      };
+      $scope.flap = function() {
+        var elapsedTime;
+        elapsedTime = new Date() - lastCommandTime;
+        if (elapsedTime > 80) {
+          FishService.enqueue("flap" + $scope.flapDirection);
+          return lastCommandTime = new Date();
         }
       };
-      $scope.flap = function(direction) {
-        console.log('flap', direction);
-        FishService.enqueue('stop');
-        FishService.enqueue("flap" + direction);
-        lastFlapDirection = direction;
-        return lastFlapTime = new Date();
-      };
-      lastCommandTime = new Date();
       $scope.autoNose = function() {
         var elapsedTime;
         elapsedTime = new Date() - lastCommandTime;
-        if (elapsedTime > 200) {
+        if (elapsedTime > 40) {
           FishService.enqueue($scope.noseState);
           return lastCommandTime = new Date();
         }

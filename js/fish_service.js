@@ -24,7 +24,6 @@
             console.warn("Unknown Command: ", command);
             return;
           }
-          console.log('sending to serial port', command);
           serialPort.write("" + serialCommand + "\r\t", function(err, results) {});
         } else {
 
@@ -48,8 +47,7 @@
         },
         enqueue: function(command) {
           fishService.queue.push(command);
-          fishService.history.unshift(command);
-          return console.log(command, 'enqueued');
+          return fishService.history.unshift(command);
         }
       };
       return fishService;

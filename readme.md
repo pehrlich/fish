@@ -21,3 +21,26 @@ coffee -w -c -o ../js ./
 ```
 open -n -a node-webkit ../fish.nw
 ```
+
+
+```
+### Balancing & Tuning
+
+```ruby
+# controls what pitch is considered "flat"
+zeroAngle = 0.4 #radians
+
+# controls what pitch is required to activate a tilt
+activationAngle = 0.4 #radians
+
+
+
+#leap_service.coffee
+
+# controls how much x palmPosition changes flap speed
+speedFactor
+
+# controls how much y palmPosition changes flap left-right ratio
+balanceFactor
+
+```

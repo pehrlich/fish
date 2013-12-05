@@ -25,7 +25,7 @@ app.factory 'FishService', [->
         console.warn "Unknown Command: ", command
         return
 
-      console.log 'sending to serial port', command
+#      console.log 'sending to serial port', command
       serialPort.write "#{serialCommand}\r\t", (err, results) ->
 #        console.log 'done writing', err, results
     else
@@ -55,7 +55,7 @@ app.factory 'FishService', [->
     enqueue: (command)->
       fishService.queue.push command
       fishService.history.unshift command
-      console.log command, 'enqueued'
+#      console.log command, 'enqueued'
   }
   return fishService
 ]

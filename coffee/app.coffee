@@ -45,33 +45,37 @@ app.controller "FishController", ["$scope", "LeapService", "FishService", ($scop
     FishService.stop()
 
 
-  lastFlapTime = new Date()
-  lastFlapDirection = 'Right' # always flap left first
+  lastCommandTime = new Date()
+  lastDirectionChangeTime = new Date()
+  $scope.flapDirection = 'Right' # always flap left first
 
   $scope.autoFlap = (frame)->
-    elapsedTime = new Date() - lastFlapTime
-    console.log 'autoflap'
-    if lastFlapDirection == 'Right' && elapsedTime > frame.rightFlapTime
-      $scope.flap('Left')
+    elapsedTime = new Date() - lastDirectionChangeTime
+    if $scope.flapDirection == 'Right' && elapsedTime > frame.rightFlapTime
+      $scope.flapDirection = 'Left'
+      FishService.enqueue('stop')
+      lastDirectionChangeTime = new Date()
 
-    else if lastFlapDirection == 'Left' && elapsedTime > frame.leftFlapTime
-      $scope.flap('Right')
+    else if $scope.flapDirection == 'Left' && elapsedTime > frame.leftFlapTime
+      $scope.flapDirection = 'Right'
+      FishService.enqueue('stop')
+      lastDirectionChangeTime = new Date()
+
+    $scope.flap()
+
+  $scope.flap = ->
+    elapsedTime = new Date() - lastCommandTime
+
+    if elapsedTime > 80
+      FishService.enqueue("flap#{$scope.flapDirection}")
+      lastCommandTime = new Date()
 
 
-  $scope.flap = (direction)->
-    console.log 'flap', direction
-    FishService.enqueue('stop')
-    FishService.enqueue("flap#{direction}")
-    lastFlapDirection = direction
-    lastFlapTime = new Date()
-
-
-  lastCommandTime = new Date()
   $scope.autoNose = ->
     # prevent flooding.  Without this, movement will be jerkey.
     # this probably belongs in Fish Service.
     elapsedTime = new Date() - lastCommandTime
-    if elapsedTime > 200
+    if elapsedTime > 40
       FishService.enqueue $scope.noseState
       lastCommandTime = new Date()
 
